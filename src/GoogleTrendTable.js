@@ -1,84 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-const GoogleTrendTable = () => {
-  const [keywords, setKeywords] = useState('');
-  const [timeframe, setTimeframe] = useState('now 1-H');
-  const [geo, setGeo] = useState('VN');
-  const [searchResult, setSearchResult] = useState(null);
+const GoogleTrendTable = ({ keyword }) => {
+  const [trendData, setTrendData] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Dữ liệu mẫu (mock data)
-  const mockData = {
-    keywords: ["bóng", "đá", "VN"],
-    total_searches: 3377
-  };
+  useEffect(() => {
+    if (keyword) {
+      fetchTrendData(keyword);
+    }
+  }, [keyword]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSearchResult(mockData);
+  const fetchTrendData = async (keyword) => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/v1/trend/fetch_daily_trend_total', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keywords: [keyword],
+          timeframe: 'now 1-H', // Khoảng thời gian tùy chỉnh
+          geo: 'VN', // Khu vực tìm kiếm (Ví dụ: Việt Nam)
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error fetching data: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setTrendData(data);
+    } catch (error) {
+      setError('Failed to fetch trend data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Google Trends Dashboard (Dữ liệu mẫu)</h1>
-
-      {/* Form nhập từ khóa */}
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '10px' }}>
-          <label>Từ khóa: </label>
-          <input
-            type="text"
-            value={keywords}
-            onChange={(e) => setKeywords(e.target.value)}
-            placeholder="Nhập từ khóa (ngăn cách bằng dấu phẩy)"
-            style={{ padding: '5px', width: '300px' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '10px' }}>
-          <label>Khung thời gian: </label>
-          <select value={timeframe} onChange={(e) => setTimeframe(e.target.value)} style={{ padding: '5px' }}>
-            <option value="now 1-H">Giờ gần nhất</option>
-            <option value="now 1-d">Ngày gần nhất</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: '10px' }}>
-          <label>Khu vực: </label>
-          <input
-            type="text"
-            value={geo}
-            onChange={(e) => setGeo(e.target.value)}
-            placeholder="Mã khu vực (ví dụ: VN)"
-            style={{ padding: '5px', width: '100px' }}
-          />
-        </div>
-
-        <button type="submit" style={{ padding: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none' }}>
-          Lấy dữ liệu
-        </button>
-      </form>
-
-      {/* Hiển thị kết quả trong bảng */}
-      {searchResult && (
-        <div style={{ marginTop: '20px' }}>
-          <h2>Kết quả tìm kiếm</h2>
-          <table border="1" cellPadding="10" cellSpacing="0" style={{ width: '100%', textAlign: 'left' }}>
-            <thead>
-              <tr>
-                <th>Từ khóa</th>
-                <th>Tổng số lượt tìm kiếm</th>
+    <div>
+      <h2>Google Trend for "{keyword}"</h2>
+      {loading && <p>Loading...</p>}
+      {error && <p>{error}</p>}
+      {trendData && (
+        <table border="1" style={{ width: '100%', textAlign: 'left', marginTop: '20px' }}>
+          <thead>
+            <tr>
+              <th>Keyword</th>
+              <th>Total Searches</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trendData.keywords.map((kw, index) => (
+              <tr key={index}>
+                <td>{kw}</td>
+                <td>{trendData.total_searches}</td>
               </tr>
-            </thead>
-            <tbody>
-              {searchResult.keywords.map((keyword, index) => (
-                <tr key={index}>
-                  <td>{keyword}</td>
-                  <td>{searchResult.total_searches}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
